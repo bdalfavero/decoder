@@ -11,9 +11,10 @@ a3 = np.random.rand(100, 50).astype(float)
 t3 = qtn.Tensor(a3, ['c', 'd'])
 
 tensor_network = t1 & t2 & t3
+coords = [(0, 0), (0, 1), (0, 2)]
 
 for max_bond in range(1, 100):
-    result = sweepline_contract(tensor_network, max_bond, 'k')
+    result = sweepline_contract(tensor_network, coords, max_bond, 'k')
     builtin_result = tensor_network.contract()
     assert result.shape == builtin_result.data.shape
     result_reshaped = result.data.reshape(result.data.size)

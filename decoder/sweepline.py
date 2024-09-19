@@ -1,3 +1,4 @@
+from typing import List, Tuple
 from copy import deepcopy
 import numpy as np
 from scipy.linalg import svd
@@ -36,14 +37,17 @@ def decompose_tensor_as_MPS(
 
 def sweepline_contract(
     tensor_net: qtn.TensorNetwork,
+    coords: List[Tuple[float, float]],
     max_bond: int,
     mps_bond_prefix: str='k'
 ) -> qtn.Tensor:
     """Contract the tensor network using the sweepline algorithm from Chubb."""
 
+    tensors_and_coords = [(t, x, y) for t, (x, y) in zip(tensor_net.tensors, coords)]
+    tensors_and_coords.sort(key=lambda t: t[1]) # sort by y.
     # start the MPS using the first tensor in the network.
     tnet = qtn.TensorNetwork()
-    for i, tensor in enumerate(tensor_net.tensors):
+    for i, (tensor, x, y) in enumerate(tensors_and_coords):
         if i == 0:
             tnet.add_tensor(tensor)
         elif i == len(tensor_net.tensors) - 1:
