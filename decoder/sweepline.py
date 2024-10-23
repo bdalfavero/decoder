@@ -1,9 +1,11 @@
 from typing import List, Tuple
 from copy import deepcopy
 import numpy as np
+from numba import njit
 from scipy.linalg import svd
 import quimb.tensor as qtn
 
+@njit
 def decompose_tensor_as_MPS(
     tensor: qtn.Tensor, 
     max_bond: int, 
@@ -35,6 +37,7 @@ def decompose_tensor_as_MPS(
     return mps
 
 
+@njit
 def sweepline_contract(
     tensor_net: qtn.TensorNetwork,
     coords: List[Tuple[float, float]],
