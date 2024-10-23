@@ -1,14 +1,14 @@
+"""A tensor network decoder for the surface code, following Bravyi and Chubb.
+For now, assumes i.i.d. noise."""
+
 from typing import List, Dict, Optional
 import numpy as np
 import cirq
 import quimb.tensor as qtn
 from decoder.error_model import ErrorModel, independent_depolarizing_noise
 
-"""A tensor network decoder for the surface code, following Bravyi and Chubb.
-For now, assumes i.i.d. noise."""
-
 def kron_tensor(d: int, inds: List[str]) -> qtn.Tensor:
-    """A tensor that implements the Kronecker functions \delta_{i,j,k,l} or \delta_{i,j,k},
+    """A tensor that implements the Kronecker functions delta_{i,j,k,l} or delta_{i,j,k},
     depending on how many indices are passed.
     
     Arguments:
@@ -26,7 +26,9 @@ def kron_tensor(d: int, inds: List[str]) -> qtn.Tensor:
     return qtn.Tensor(delta, inds=inds)
 
 
-def error_tensor(err: cirq.PauliString, err_model: ErrorModel, inds: Dict[str, Optional[str]]) -> qtn.Tensor:
+def error_tensor(
+    err: cirq.PauliString, err_model: ErrorModel, inds: Dict[str, Optional[str]]
+) -> qtn.Tensor:
     """The tensor encoding probabilities of errors in Bravyi and Chubb.
     
     Arguments:
@@ -48,9 +50,9 @@ def error_tensor(err: cirq.PauliString, err_model: ErrorModel, inds: Dict[str, O
     else:
         # TODO this does not work for non-iid noise - maybe qubit should be a keyword argument.
         q = cirq.LineQubit(0)
-    pauli_x = cirq.PauliString({q: cirq.X})
-    pauli_y = cirq.PauliString({q: cirq.Y})
-    pauli_z = cirq.PauliString({q: cirq.Z})
+    pauli_x: cirq.PauliString = cirq.PauliString({q: cirq.X})
+    pauli_y: cirq.PauliString = cirq.PauliString({q: cirq.Y})
+    pauli_z: cirq.PauliString = cirq.PauliString({q: cirq.Z})
 
     # Count how many indices are not none.
     num_indices = 0
@@ -99,7 +101,7 @@ def error_tensor(err: cirq.PauliString, err_model: ErrorModel, inds: Dict[str, O
             else:
                 ind_list = [inds["n"], inds["s"], inds["e"]]
         else:
-            # Both east and west are present, and only one 
+            # Both east and west are present, and only one
             # of north or south is here.
             err_tensor[0, 0, 0] = err_model(err)
             err_tensor[0, 0, 1] = err_model(err * pauli_x)
@@ -135,10 +137,59 @@ def error_tensor(err: cirq.PauliString, err_model: ErrorModel, inds: Dict[str, O
     return qtn.Tensor(err_tensor, inds=ind_list)
 
 
+def build_network_for_error_class(err: cirq.PauliString, d: int, p_depol: float) -> qtn.TensorNetwork:
+    """Builds the 2D PEPS for the RBIM partition function.
+    
+    Arguments:
+    err - A Pauli string acting on qubits of the code. Represents the 'base error' to which
+    stabilizers are added.
+    d - distance of the code.
+    p_depol - depolarizing probability
+    
+    Returns:
+    peps - tensor network corresponding to the partition function."""
+
+    assert (p_depol >= 0.0) and (p_depol <= 1.0), "Probability must be valid."
+    assert d > 1
+
+    # Make a list of horizontal and vertical indices.
+    tensor_per_side = 2 * d - 1
+    horizontal_indices: List[List[str]] = []
+    vertical_indices: List[List[str]] = []
+    current_i: int = 0
+    current_j: int = 0
+    for i in range(tensor_per_side): # over rows
+        this_row_horizontal_inds: List[str] = []
+        this_row_vertical_inds: List[str] = []
+        for j in range(tensor_per_side - 1): # over cols
+            this_row_horizontal_inds.append(f"i{current_i}")
+            this_row_vertical_inds.append(f"j{current_j}")
+            current_i += 1
+            current_j += 1
+        # There is always one more vertical link than horizontal.
+        # Compensate by adding another link.
+        this_row_vertical_inds.append(f"j{current_j}")
+        current_j += 1
+        horizontal_indices.append(this_row_horizontal_inds)
+        vertical_indices.append(this_row_vertical_inds)
+    
+    # Build each of the tensors.
+    tensors: List[qtn.Tensor] = []
+    for i in range(tensor_per_side): # over rows
+        for j in range(tensor_per_side): # over cols
+            if (i % 2 == 0 and j % 2 == 0) or (i % 2 != 0 and j % 2 != 0):
+                # This is an error tensors.
+                data_qubit: cirq.Qid = 
+                error_on_qubit: cirq.PauliString = 
+                model = lambda err_pstring: independent_depolarizing_noise(err_pstring, p_depol)
+                inds = 
+                tensors.append(error_tensor(error_on_qubit, model, inds))
+            else:
+                # This is a Kronecker delta tensor.
+                tensors.append()
+
+
 if __name__ == "__main__":
-    #delta = kron_tensor(2, ["i", "j", "k"])
     q = cirq.LineQubit(0)
     err = cirq.PauliString({q: cirq.X})
-    model = lambda err_str: independent_depolarizing_noise(err_str, 0.1)
-    err_tensor = error_tensor(err, model, {"n": "i", "s": "k", "e": "j", "w": None})
-    print(err_tensor)
+    build_network_for_error_class(err, 3)
