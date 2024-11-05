@@ -12,7 +12,12 @@ def independent_depolarizing_noise(pauli: cirq.PauliString, p_depol: float) -> f
         # This is the identity.
         return 1.0 - p_depol
     elif len(pauli.values()) == 1:
-        # This is X, Y, or Z:
-        return p_depol
+        if list(pauli.values())[0] in [cirq.X, cirq.Y, cirq.Z]:
+            # This is X, Y, or Z:
+            return p_depol / 3.0
+        else:
+            raise ValueError(
+                f"Value {list(pauli.values())[0]} on qubit {list(pauli.keys())[0]} is invalid."
+            )
     else:
-        raise ValueError(f"String {pauli} has too many values.")
+        raise ValueError(f"String {pauli} has too high a weight. It should be weight 1.")
