@@ -215,6 +215,48 @@ def build_network_for_error_class(qs: List[cirq.Qid], err: cirq.PauliString, d: 
     return qtn.TensorNetwork(tensors)
 
 
+def syndrome_to_representative(d: int, syndrome: np.ndarray) -> cirq.PauliString:
+    """Convert a measured syndrome into a Pauli string representing an error that
+    could have produced that syndrome. Note: We assume that the syndrome is extracted
+    perfectly, i.e. there is no noise on the measurement qubits."""
+
+    # The syndrome identifies endpoints of error strings. Draw lines between them.
+    raise NotImplementedError()
+
+
+def decode_representative(d: int, representative: cirq.PauliString, p_depol: float) -> int:
+    """Decide which of the cosets fI, fX, fY, or fZ is most likely,
+    where f is the representative of some syndrome s."""
+
+    assert p_depol >= 0.0 and p_depol <= 1.0, "Depolarizing probability must be valid."
+    assert d > 1, f"Distance must be greater than one, not {d}"
+
+    n_data_qubits = d * d + (d - 1) * (d - 1)
+    qs = cirq.LineQubit.range(n_data_qubits)
+    f: cirq.PauliString = representative
+    # Make Pauli strings for logical observables.
+    xbar = cirq.PauliString()
+    zbar = cirq.PauliString()
+    ybar = xbar * zbar
+    # Find the probability of each logical coset.
+    coset_paulis: List[cirq.PauliString] = [f, f * xbar, f * ybar, f * zbar]
+    coset_probs: List[float] = []
+    for i, cp in enumerate(coset_paulis):
+        tn = build_network_for_error_class(qs, cp, d, p_depol)
+        # TODO Replace this with an approximate contractor.
+        prob = tn.contract()
+        assert prob >= 0 and prob <= 1.0, f"Found invalid probability {prob} for coset {i}."
+        coset_probs.append(prob)
+    return np.argmin(coset_probs)
+
+
+def decode_syndrome(d: int, syndrome: np.ndarray, p_depol: float) -> int:
+    """Decode a syndrome for a distance d surface code with depolarizing probability p_depol."""
+
+    representative = syndrome_to_representative(d, syndrome)
+    return decode_representative(d, representative, p_depol)
+
+
 if __name__ == "__main__":
     qs = cirq.LineQubit.range(13)
     q = cirq.LineQubit(0)
