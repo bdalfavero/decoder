@@ -262,4 +262,5 @@ if __name__ == "__main__":
     q = cirq.LineQubit(0)
     err = cirq.PauliString({q: cirq.X})
     tn = build_network_for_error_class(qs, err, 3, 0.1)
+    breakpoint()
     tn.contract()
