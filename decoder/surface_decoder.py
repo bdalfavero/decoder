@@ -73,7 +73,7 @@ def error_tensor(
                     pz_to_k = raise_pauli_to_power(pauli_z, k)
                     px_to_j = raise_pauli_to_power(pauli_x, j)
                     tensor_data[j, k] = err_model(err * pz_to_k * px_to_j)
-        return qtn.Tensor(tensor_data, inds=["j", "k"])
+        return qtn.Tensor(tensor_data, inds=["i", "j"])
     elif num_inds == 3:
         tensor_data = np.zeros((2, 2, 2), dtype=complex)
         for i in range(2): # North index.
@@ -165,7 +165,6 @@ def build_network_for_error_class(qs: List[cirq.Qid], err: cirq.PauliString, d: 
                 inds.append(horizontal_indices[i][j])
             if j != 0: # East
                 inds.append(horizontal_indices[i][j-1])
-            #print(i, j, inds)
             # Build the tensor (either an error tensor or a kroncker tensor).
             if (i % 2 == 0 and j % 2 == 0) or (i % 2 != 0 and j % 2 != 0):
                 # This is an error tensor.
@@ -209,8 +208,9 @@ def build_network_for_error_class(qs: List[cirq.Qid], err: cirq.PauliString, d: 
                 # This is a Kronecker delta tensor.
                 tensor = kron_tensor(2, inds)
                 tensor.add_tag("s")
-            tensor.add_tag(f"i{i}")
-            tensor.add_tag(f"j{j}")
+            tensor.add_tag(f"row{i}")
+            tensor.add_tag(f"col{j}")
+            #print(i, j, inds, tensor.inds)
             tensors.append(tensor)
     return qtn.TensorNetwork(tensors)
 
@@ -261,4 +261,5 @@ if __name__ == "__main__":
     qs = cirq.LineQubit.range(13)
     q = cirq.LineQubit(0)
     err = cirq.PauliString({q: cirq.X})
-    build_network_for_error_class(qs, err, 3, 0.1)
+    tn = build_network_for_error_class(qs, err, 3, 0.1)
+    tn.contract()
