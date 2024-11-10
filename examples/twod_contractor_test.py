@@ -56,11 +56,11 @@ def build_network(rows: int, cols: int, chi: int) -> qtn.TensorNetwork:
 
 
 def main() -> None:
-    tn = build_network(3, 3, 2)
+    tn = build_network(4, 3, 3)
     result_tensor = tn.contract()
     chis = range(1, 9)
     for chi in chis:
-        my_result_tensor = contract_2d_network(3, 3, tn, 8)
+        my_result_tensor = contract_2d_network(4, 3, tn, chi)
         err = abs(my_result_tensor - result_tensor)
         print(chi, err)
 
