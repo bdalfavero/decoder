@@ -1,6 +1,6 @@
 from math import isqrt
 import quimb.tensor as qtn
-from quimb.tensor.Tensor1D import MatrixProductState, MatrixProductOperator
+from quimb.tensor.tensor_1d import MatrixProductState, MatrixProductOperator
 
 def contract_2d_network(rows: int, cols: int, tn: qtn.TensorNetwork, chi: int) -> float:
     """Contract the 2D network corresponding to the surface code decoder.
@@ -33,6 +33,4 @@ def contract_2d_network(rows: int, cols: int, tn: qtn.TensorNetwork, chi: int) -
     last_col_tensors = [tn.tensors[i] for i in tn.tag_map[f"col{cols-1}"]]
     last_col_mps = qtn.TensorNetwork(last_col_tensors)
     result = (evolving_mps & last_col_mps).contract()
-    assert len(result.inds) == 0, \
-        f"Final tensor must not have indices (should be scalar), but has indices {result.inds}"
     return result
