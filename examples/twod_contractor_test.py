@@ -1,5 +1,6 @@
 from typing import List
 import numpy as np
+import pandas as pd
 import quimb.tensor as qtn
 from decoder.mps_mpo_contractor import contract_2d_network
 
@@ -59,10 +60,15 @@ def main() -> None:
     tn = build_network(4, 3, 3)
     result_tensor = tn.contract()
     chis = range(1, 9)
+    errs: List[float] = []
     for chi in chis:
         my_result_tensor = contract_2d_network(4, 3, tn, chi)
         err = abs(my_result_tensor - result_tensor)
-        print(chi, err)
+        errs.append(err)
+    
+    df = pd.DataFrame({"chi": chis, "err": errs})
+    df.set_index("chi", inplace=True)
+    df.to_csv("../data/contractor_errors.csv")
 
 
 if __name__ == "__main__":
