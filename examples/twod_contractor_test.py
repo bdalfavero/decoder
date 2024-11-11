@@ -1,6 +1,6 @@
 from typing import List
 import numpy as np
-import pandas as pd
+import h5py
 import quimb.tensor as qtn
 from decoder.mps_mpo_contractor import contract_2d_network
 
@@ -47,7 +47,7 @@ def build_network(rows: int, cols: int, chi: int) -> qtn.TensorNetwork:
                 inds.append(horizontal_indices[i][j-1])
                 shape.append(chi)
             # Build the tensor.
-            tensor_data = np.random.rand(*shape)
+            tensor_data = np.random.rand(*shape) - 0.5
             tensor = qtn.Tensor(tensor_data, inds)
             tensor.add_tag(f"row{i}")
             tensor.add_tag(f"col{j}")
@@ -57,18 +57,27 @@ def build_network(rows: int, cols: int, chi: int) -> qtn.TensorNetwork:
 
 
 def main() -> None:
-    tn = build_network(4, 3, 3)
-    result_tensor = tn.contract()
-    chis = range(1, 9)
-    errs: List[float] = []
-    for chi in chis:
-        my_result_tensor = contract_2d_network(4, 3, tn, chi)
-        err = abs(my_result_tensor - result_tensor)
-        errs.append(err)
+    sizes: List[int] = range(3, 6)
+    chis: List[int] = range(1, 9)
+    # Test my contractor vs. quimb's.
+    # Make array of errors. Rows are network sizes, columns are bond dims.
+    errs: np.ndarray = np.zeros((len(sizes), len(chis)))
+    for i, size in enumerate(sizes):
+        tn = build_network(size, size, size)
+        result_tensor = tn.contract()
+        for j, chi in enumerate(chis):
+            my_result_tensor = contract_2d_network(size, size, tn, chi)
+            err = abs(my_result_tensor - result_tensor)
+            errs[i, j] = err
     
-    df = pd.DataFrame({"chi": chis, "err": errs})
-    df.set_index("chi", inplace=True)
-    df.to_csv("../data/contractor_errors.csv")
+    f = h5py.File("../data/contractor_data.hdf5", "w")
+    sizes_dset = f.create_dataset("sizes", (len(sizes)), dtype=int)
+    sizes_dset[:] = sizes
+    chis_dset = f.create_dataset("chis", (len(chis)), dtype=int)
+    chis_dset[:] = chis
+    errors_dset = f.create_dataset("errors", errs.shape, dtype=float)
+    errors_dset[:] = errs
+    f.close()
 
 
 if __name__ == "__main__":
