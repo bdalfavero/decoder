@@ -1,7 +1,7 @@
 """A tensor network decoder for the surface code, following Bravyi and Chubb.
 For now, assumes i.i.d. noise."""
 
-from typing import List, Dict, Optional
+from typing import List, Dict, Tuple
 import numpy as np
 import cirq
 import quimb.tensor as qtn
@@ -257,10 +257,96 @@ def decode_syndrome(d: int, syndrome: np.ndarray, p_depol: float) -> int:
     return decode_representative(d, representative, p_depol)
 
 
+def error_to_syndrome(d: int, err: cirq.PauliString) -> Tuple[List[bool], List[bool]]:
+    """Convert a Pauli string error into its syndrome.
+    This function is used for debugging, or testing the decoder by sampling errors instead of
+    getting syndromes from a stim circuit."""
+
+    qubits_per_side = 2 * d - 1
+    assert set(err.qubits).issubset(set(cirq.GridQubit.rect(qubits_per_side, qubits_per_side))), \
+        "Error must use the uppper-left rectangle of grid qubits."
+
+    # These dictionaries map indices on the qubit grid to booleans.
+    z_syndrome: Dict[int, Dict[int, bool]] = {}
+    x_syndrome: Dict[int, Dict[int, bool]] = {}
+    # Intialize every syndrome qubit as False.
+    # See Fig. 8 of Chubb and Flammia for refernce.
+    for i in range(qubits_per_side):
+        for j in range(qubits_per_side):
+            if (i % 2 == 0) and (j % 2 != 0):
+                # This is a X stabilizer.
+                if i not in x_syndrome.keys():
+                    x_syndrome[i] = {}
+                x_syndrome[i][j] = False
+            if (i % 2 != 0) and (j % 2 == 0):
+                # This is a Z stabilizer.
+                if i not in z_syndrome.keys():
+                    z_syndrome[i] = {}
+                z_syndrome[i][j] = False
+    
+    for q in err.keys():
+        # North
+        if q.row != 0:
+            if q.col % 2 == 0:
+                # North and south are Z stabilizers.
+                if err[q] == cirq.Z or err[q] == cirq.Y:
+                    z_syndrome[q.row - 1][q.col] = not z_syndrome[q.row - 1][q.col]
+            else:
+                # North and south are X stabilizers.
+                if err[q] == cirq.X or err[q] == cirq.Y:
+                    x_syndrome[q.row - 1][q.col] = not x_syndrome[q.row - 1][q.col]
+        # South
+        if q.row != qubits_per_side - 1:
+            if q.col % 2 == 0:
+                # North and south are Z stabilizers.
+                if err[q] == cirq.Z or err[q] == cirq.Y:
+                    z_syndrome[q.row + 1][q.col] = not z_syndrome[q.row + 1][q.col]
+            else:
+                # North and south are X stabilizers.
+                if err[q] == cirq.X or err[q] == cirq.Y:
+                    x_syndrome[q.row + 1][q.col] = not x_syndrome[q.row + 1][q.col]
+        # East
+        if q.col != qubits_per_side - 1:
+            if q.col % 2 == 0:
+                # East and west are X stabilizers.
+                if err[q] == cirq.X or err[q] == cirq.Y:
+                    x_syndrome[q.row][q.col + 1] = not x_syndrome[q.row][q.col + 1]
+            else:
+                # East and west are X stabilizers.
+                if err[q] == cirq.Z or err[q] == cirq.Y:
+                    z_syndrome[q.row][q.col + 1] = not z_syndrome[q.row][q.col + 1]
+        # West
+        if q.col != 0:
+            if q.col % 2 == 0:
+                # East and west are X stabilizers.
+                if err[q] == cirq.X or err[q] == cirq.Y:
+                    x_syndrome[q.row][q.col - 1] = not x_syndrome[q.row][q.col - 1]
+            else:
+                # East and west are X stabilizers.
+                if err[q] == cirq.Z or err[q] == cirq.Y:
+                    z_syndrome[q.row][q.col - 1] = not z_syndrome[q.row][q.col - 1]
+
+    z_syndrome_list = []
+    for i in z_syndrome.keys():
+        for j in z_syndrome[i].keys():
+            z_syndrome_list.append(z_syndrome[i][j])
+    x_syndrome_list = []
+    for i in x_syndrome.keys():
+        for j in x_syndrome[i].keys():
+            x_syndrome_list.append(x_syndrome[i][j])
+
+    return (z_syndrome_list, x_syndrome_list)
+
+
 if __name__ == "__main__":
-    qs = cirq.LineQubit.range(13)
-    q = cirq.LineQubit(0)
+    #qs = cirq.LineQubit.range(13)
+    #q = cirq.LineQubit(0)
+    #err = cirq.PauliString({q: cirq.X})
+    #tn = build_network_for_error_class(qs, err, 3, 0.1)
+    #result = tn.contract()
+    #print(result)
+    qs = cirq.GridQubit.rect(13, 13)
+    q = cirq.GridQubit(0, 0)
     err = cirq.PauliString({q: cirq.X})
-    tn = build_network_for_error_class(qs, err, 3, 0.1)
-    breakpoint()
-    tn.contract()
+    z_syndrome, x_syndrome = error_to_syndrome(3, err)
+    print(z_syndrome, x_syndrome)
