@@ -232,11 +232,19 @@ def decode_representative(d: int, representative: cirq.PauliString, p_depol: flo
     assert d > 1, f"Distance must be greater than one, not {d}"
 
     n_data_qubits = d * d + (d - 1) * (d - 1)
-    qs = cirq.LineQubit.range(n_data_qubits)
+    qs = cirq.GridQubit.rect(13, 13)
     f: cirq.PauliString = representative
     # Make Pauli strings for logical observables.
-    xbar = cirq.PauliString()
-    zbar = cirq.PauliString()
+    xbar = cirq.PauliString({
+        cirq.GridQubit(0, 0): cirq.X,
+        cirq.GridQubit(0, 2): cirq.X,
+        cirq.GridQubit(0, 4): cirq.X
+    })
+    zbar = cirq.PauliString({
+        cirq.GridQubit(0, 0): cirq.Z,
+        cirq.GridQubit(2, 0): cirq.Z,
+        cirq.GridQubit(4, 0): cirq.Z
+    })
     ybar = xbar * zbar
     # Find the probability of each logical coset.
     coset_paulis: List[cirq.PauliString] = [f, f * xbar, f * ybar, f * zbar]
@@ -247,7 +255,7 @@ def decode_representative(d: int, representative: cirq.PauliString, p_depol: flo
         prob = tn.contract()
         assert prob >= 0 and prob <= 1.0, f"Found invalid probability {prob} for coset {i}."
         coset_probs.append(prob)
-    return np.argmin(coset_probs)
+    return np.argmax(coset_probs)
 
 
 def decode_syndrome(d: int, syndrome: np.ndarray, p_depol: float) -> int:
@@ -339,14 +347,11 @@ def error_to_syndrome(d: int, err: cirq.PauliString) -> Tuple[List[bool], List[b
 
 
 if __name__ == "__main__":
-    #qs = cirq.LineQubit.range(13)
-    #q = cirq.LineQubit(0)
-    #err = cirq.PauliString({q: cirq.X})
-    #tn = build_network_for_error_class(qs, err, 3, 0.1)
-    #result = tn.contract()
-    #print(result)
     qs = cirq.GridQubit.rect(13, 13)
-    q = cirq.GridQubit(0, 0)
-    err = cirq.PauliString({q: cirq.X})
-    z_syndrome, x_syndrome = error_to_syndrome(3, err)
-    print(z_syndrome, x_syndrome)
+    #q = cirq.GridQubit(0, 2)
+    qs_first_row = [
+        cirq.GridQubit(2, 0), cirq.GridQubit(2, 2), cirq.GridQubit(2, 2)
+    ]
+    err = cirq.PauliString({q: cirq.Z for q in qs_first_row})
+    coset_idx = decode_representative(3, err, 0.1)
+    print(coset_idx)
