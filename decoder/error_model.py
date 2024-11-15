@@ -21,3 +21,23 @@ def independent_depolarizing_noise(pauli: cirq.PauliString, p_depol: float) -> f
             )
     else:
         raise ValueError(f"String {pauli} has too high a weight. It should be weight 1.")
+
+
+def independent_bit_flip_noise(pauli: cirq.PauliString, p_flip: float) -> float:
+    """A bit flip channel acting on each qubit independently."""
+
+    if len(pauli.values()) == 0:
+        # This is the identity.
+        return 1.0 - p_flip
+    elif len(pauli.values()) == 1:
+        if list(pauli.values())[0] in [cirq.Y, cirq.Z]:
+            # In a bit flip channel, Y or Z errors will not happen.
+            return 0.0
+        elif list(pauli.values())[0] == cirq.X:
+            return  p_flip / 3.0
+        else:
+            raise ValueError(
+                f"Value {list(pauli.values())[0]} on qubit {list(pauli.keys())[0]} is invalid."
+            )
+    else:
+        raise ValueError(f"String {pauli} has too high a weight. It should be weight 1.")

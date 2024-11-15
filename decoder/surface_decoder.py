@@ -5,7 +5,7 @@ from typing import List, Dict, Tuple
 import numpy as np
 import cirq
 import quimb.tensor as qtn
-from decoder.error_model import ErrorModel, independent_depolarizing_noise
+from decoder.error_model import ErrorModel, independent_depolarizing_noise, independent_bit_flip_noise
 from decoder.helpers import raise_pauli_to_power
 
 def kron_tensor(d: int, inds: List[str]) -> qtn.Tensor:
@@ -111,7 +111,9 @@ def error_tensor(
         raise ValueError(f"Number of indices {num_inds} is invalide. Must be 2, 3, or 4.")
 
 
-def build_network_for_error_class(qs: List[cirq.Qid], err: cirq.PauliString, d: int, p_depol: float) -> qtn.TensorNetwork:
+def build_network_for_error_class(
+    qs: List[cirq.Qid], err: cirq.PauliString, d: int, p_depol: float, model: ErrorModel
+) -> qtn.TensorNetwork:
     """Builds the 2D PEPS for the RBIM partition function.
     
     Arguments:
@@ -120,9 +122,10 @@ def build_network_for_error_class(qs: List[cirq.Qid], err: cirq.PauliString, d: 
     stabilizers and logicals are multiplied.
     d - distance of the code.
     p_depol - depolarizing probability
+    model - ErrorModel for the tensor.
     
     Returns:
-    peps - tensor network corresponding to the partition function."""
+    network - tensor network corresponding to the partition function."""
 
     assert set(err.keys()).issubset(set(qs)), "Error qubits must be a subset of the data qubits."
     assert (p_depol >= 0.0) and (p_depol <= 1.0), "Probability must be valid."
@@ -176,7 +179,6 @@ def build_network_for_error_class(qs: List[cirq.Qid], err: cirq.PauliString, d: 
                 # If the tensor is "h," then east and west are X, north and south are Z.
                 # If the tensor is "v," then east and west are Z, north and south are X.
                 tensor_is_h = (i % 2 == 0) and (j % 2 == 0)
-                model = lambda e: independent_depolarizing_noise(e, p_depol)
                 #breakpoint()
                 tensor = error_tensor(local_err, model, len(inds), not tensor_is_h)
                 # The above function assigns generic indices. Change these for specific tensors.
@@ -224,7 +226,9 @@ def syndrome_to_representative(d: int, syndrome: np.ndarray) -> cirq.PauliString
     raise NotImplementedError()
 
 
-def decode_representative(d: int, representative: cirq.PauliString, p_depol: float) -> int:
+def decode_representative(
+    d: int, representative: cirq.PauliString, p_depol: float, model: ErrorModel
+) -> int:
     """Decide which of the cosets fI, fX, fY, or fZ is most likely,
     where f is the representative of some syndrome s."""
 
@@ -250,10 +254,15 @@ def decode_representative(d: int, representative: cirq.PauliString, p_depol: flo
     coset_paulis: List[cirq.PauliString] = [f, f * xbar, f * ybar, f * zbar]
     coset_probs: List[float] = []
     for i, cp in enumerate(coset_paulis):
-        tn = build_network_for_error_class(qs, cp, d, p_depol)
+        tn = build_network_for_error_class(qs, cp, d, p_depol, model)
         # TODO Replace this with an approximate contractor.
         prob = tn.contract()
-        assert prob >= 0 and prob <= 1.0, f"Found invalid probability {prob} for coset {i}."
+        if isinstance(prob, complex):
+            if abs(prob.imag) >= 1e-4:
+                raise ValueError(f"Probability has large imaginary part {prob.imag}.")
+            else:
+                prob = prob.real
+        assert prob >= 0.0 and prob <= 1.0, f"Found invalid probability {prob} for coset {i}."
         coset_probs.append(prob)
     return np.argmax(coset_probs)
 
