@@ -4,7 +4,7 @@ import cirq
 from decoder.error_model import independent_bit_flip_noise
 from decoder.surface_decoder import decode_representative
 
-def sample_surface_error(d: int, p: float) -> cirq.PauliString:
+def sample_surface_error(d: int, p: float, bit_flip=True) -> cirq.PauliString:
     """Sample an error in the surface code."""
 
     assert p >= 0.0 and p <= 1.0, "p must be a valid probability."
@@ -13,15 +13,19 @@ def sample_surface_error(d: int, p: float) -> cirq.PauliString:
     pauli_dict = {}
     for i in range(qubits_per_side):
         for j in range(qubits_per_side):
-            r = np.random.rand() # Error probability.
-            if r <= p:
-                s = np.random.rand() # 1/3 chance of X, Y, or Z.
-                if s < 1.0 / 3:
-                    pauli_dict[cirq.GridQubit(i, j)] = cirq.X
-                elif s >= 1.0 / 3 and s < 2.0 / 3:
-                    pauli_dict[cirq.GridQubit(i, j)] = cirq.Y
-                else:
-                    pauli_dict[cirq.GridQubit(i, j)] = cirq.Z
+            if ((i % 2 == 0) and (j % 2 == 0)) or ((i % 2 != 0) and (j % 2 != 0)):
+                r = np.random.rand() # Error probability.
+                if r <= p:
+                    if bit_flip:
+                        pauli_dict[cirq.GridQubit(i, j)] = cirq.X
+                    else:
+                        s = np.random.rand() # 1/3 chance of X, Y, or Z.
+                        if s < 1.0 / 3:
+                            pauli_dict[cirq.GridQubit(i, j)] = cirq.X
+                        elif s >= 1.0 / 3 and s < 2.0 / 3:
+                            pauli_dict[cirq.GridQubit(i, j)] = cirq.Y
+                        else:
+                            pauli_dict[cirq.GridQubit(i, j)] = cirq.Z
     return cirq.PauliString(pauli_dict)
 
 

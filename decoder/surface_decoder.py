@@ -171,10 +171,10 @@ def build_network_for_error_class(
             # Build the tensor (either an error tensor or a kroncker tensor).
             if (i % 2 == 0 and j % 2 == 0) or (i % 2 != 0 and j % 2 != 0):
                 # This is an error tensor.
-                if qs[data_qubit_index] in err.keys():
-                    local_err = cirq.PauliString({qs[data_qubit_index]: err[qs[data_qubit_index]]})
+                if cirq.GridQubit(i,j) in err.keys():
+                    local_err = cirq.PauliString({cirq.GridQubit(i,j): err[cirq.GridQubit(i,j)]})
                 else:
-                    local_err = cirq.PauliString({qs[data_qubit_index]: cirq.I})
+                    local_err = cirq.PauliString({cirq.GridQubit(i,j): cirq.I})
                 # Tensor is either "h" (horizontal) or "v" (vertical)
                 # If the tensor is "h," then east and west are X, north and south are Z.
                 # If the tensor is "v," then east and west are Z, north and south are X.
