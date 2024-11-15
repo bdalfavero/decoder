@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import cirq
-from decoder.error_model import independent_bit_flip_noise
+from decoder.error_model import independent_bit_flip_noise, independent_depolarizing_noise
 from decoder.surface_decoder import decode_representative
 
 def sample_surface_error(d: int, p: float, bit_flip=True) -> cirq.PauliString:
@@ -30,13 +30,14 @@ def sample_surface_error(d: int, p: float, bit_flip=True) -> cirq.PauliString:
 
 
 def main() -> None:
-    ps = np.linspace(1e-4, 0.1, num=10)
+    ps = np.linspace(1e-3, 0.4, num=10)
     count_arr = np.zeros((ps.size, 4), dtype=int)
     for i, p in enumerate(ps):
-        model = lambda e: independent_bit_flip_noise(e, p)
+        #model = lambda e: independent_bit_flip_noise(e, p)
+        model = lambda e: independent_depolarizing_noise(e, p)
         err_classes = []
         for _ in range(1000):
-            err = sample_surface_error(3, p)
+            err = sample_surface_error(3, p, False)
             err_class = decode_representative(3, err, p, model)
             err_classes.append(err_class)
         # Count the errors.
