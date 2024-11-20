@@ -3,6 +3,7 @@ For now, assumes i.i.d. noise."""
 
 from typing import List, Dict, Tuple
 import numpy as np
+import networkx as nx
 import cirq
 import quimb.tensor as qtn
 from decoder.error_model import ErrorModel, independent_depolarizing_noise, independent_bit_flip_noise
@@ -353,6 +354,62 @@ def error_to_syndrome(d: int, err: cirq.PauliString) -> Tuple[List[bool], List[b
             x_syndrome_list.append(x_syndrome[i][j])
 
     return (z_syndrome_list, x_syndrome_list)
+
+
+def is_error_logical_bit_flip(d: int, err: cirq.PauliString) -> bool:
+    """Decide if an error will flip the logical bit, i.e. the error has an X or Y logical component.
+    The test for this is whether there is a chain of Xs and Ys that stretches from the left edge
+    of the lattice to the right edge."""
+
+    # Get a new error with only Xs and Ys, no Zs.
+    xy_err_dict = {}
+    for qid, op in err.items():
+        if op == cirq.X or op == cirq.Y:
+            xy_err_dict[qid] = op
+    xy_err = cirq.PauliString(xy_err_dict)
+    qubits_per_side: int = 2 * d - 1
+    qs = cirq.GridQubit.rect(qubits_per_side, qubits_per_side)
+    assert set(err.keys()).issubset(set(qs))
+    # Make a graph where the vertices are qubits.
+    # Start with a graph containing all data qubits.
+    qubit_graph = nx.Graph()
+    for q in qs:
+        qubit_graph.add_node(q)
+    for i in range(qubits_per_side): # Over rows
+        for j in range(qubits_per_side): # Over cols
+            if ((i % 2 == 0) and (j % 2 == 0)) or ((i % 2 != 0) and (j % 2 != 0)):
+                if j != 0: # West
+                    qubit_graph.add_edge(cirq.GridQubit(i, j), cirq.GridQubit(i, j-2))
+                if j < qubits_per_side - 2: # East
+                    qubit_graph.add_edge(cirq.GridQubit(i, j), cirq.GridQubit(i, j+2))
+                if (i != 0) and (j != 0): # Northwest
+                    qubit_graph.add_edge(cirq.GridQubit(i, j), cirq.GridQubit(i-1, j-1))
+                if (i != 0) and (j != qubits_per_side - 1): # Northeast
+                    qubit_graph.add_edge(cirq.GridQubit(i, j), cirq.GridQubit(i-1, j+1))
+                if (i != qubits_per_side - 1) and (j != qubits_per_side - 1): # Southeast
+                    qubit_graph.add_edge(cirq.GridQubit(i, j), cirq.GridQubit(i+1, j+1))
+                if (i != qubits_per_side - 1) and (j != 0): # Southwest
+                    qubit_graph.add_edge(cirq.GridQubit(i, j), cirq.GridQubit(i+1, j-1))
+    # Then take out the qubits that are not in the support of the X,Y portion of the error.
+    for qubit in qs:
+        if qubit not in xy_err.keys():
+            qubit_graph.remove_node(qubit)
+    # See if there are any paths between a left edge node and a right edge node.
+    # Get the sets of qubits on the left and right (ragged) edges of the code that are in the error.
+    left_qubits = set(cirq.GridQubit.rect(qubits_per_side, 2)).intersection(set(xy_err.keys()))
+    right_qubits = set(cirq.GridQubit.rect(qubits_per_side, 2, left=qubits_per_side-2)).intersection(set(xy_err.keys()))
+    print("Size of sets on the edges:", len(left_qubits), len(right_qubits))
+    print(qubit_graph.edges)
+    # If no edge qubits are in the support of the error, then the error is obviously not a bit-flip.
+    if len(left_qubits) == 0 or len(right_qubits) == 0:
+        return False
+    path_exists = False
+    for left_q in left_qubits:
+        for right_q in right_qubits:
+            all_paths = nx.all_simple_paths(qubit_graph, left_q, right_q)
+            if len(list(all_paths)) != 0 and not path_exists:
+                path_exists = True
+    return path_exists
 
 
 if __name__ == "__main__":
