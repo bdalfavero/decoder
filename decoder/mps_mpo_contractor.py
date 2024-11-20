@@ -1,8 +1,12 @@
 from typing import List
+from numba import jit
 import quimb.tensor as qtn
 from quimb.tensor.tensor_1d import MatrixProductState, MatrixProductOperator
 
-def contract_2d_network(rows: int, cols: int, tn: qtn.TensorNetwork, chi: int) -> float:
+def contract_2d_network(
+    rows: int, cols: int, tn: qtn.TensorNetwork, chi: int,
+    backend: str = "numpy"
+) -> float:
     """Contract the 2D network corresponding to the surface code decoder.
     This is done using the MPS-MPO-MPS method as detailed in the Bravyi decoding paper.
     We treat the first and last columns as MPS's, and each intervening column as an MPO.
@@ -28,7 +32,7 @@ def contract_2d_network(rows: int, cols: int, tn: qtn.TensorNetwork, chi: int) -
         old_length: int = len(evolving_mps.tensors)
         mpo_tensors: List[qtn.Tensor] = [tn.tensors[k] for k in tn.tag_map[f"col{i}"]]
         mpo = qtn.TensorNetwork(mpo_tensors)
-        evolving_mps = qtn.TensorNetwork([(evolving_mps & mpo).contract()])
+        evolving_mps = qtn.TensorNetwork([(evolving_mps & mpo).contract(backend=backend)]) 
         for k in range(len(evolving_mps.outer_inds())):
             evolving_mps = evolving_mps.split(evolving_mps.outer_inds()[:k], absorb="left")
         evolving_mps.compress_all(max_bond=chi, inplace=True)

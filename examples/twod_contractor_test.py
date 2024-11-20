@@ -58,8 +58,8 @@ def build_network(rows: int, cols: int, chi: int) -> qtn.TensorNetwork:
 
 
 def main() -> None:
-    sizes: List[int] = range(3, 6)
-    chis: List[int] = range(1, 9)
+    sizes: List[int] = range(3, 15)
+    chis: List[int] = range(2, 9)
     # Test my contractor vs. quimb's.
     # Make array of errors. Rows are network sizes, columns are bond dims.
     errs: np.ndarray = np.zeros((len(sizes), len(chis)))
@@ -67,14 +67,14 @@ def main() -> None:
     my_times: np.ndarray = np.zeros((len(sizes), len(chis)))
 
     for i, size in enumerate(sizes):
-        tn = build_network(size, size, size)
+        tn = build_network(size, size, 2)
         quimb_start_time = perf_counter()
         result_tensor = tn.contract()
         quimb_end_time = perf_counter()
         quimb_times[i] = quimb_end_time - quimb_start_time
         for j, chi in enumerate(chis):
             my_start_time = perf_counter()
-            my_result_tensor = contract_2d_network(size, size, tn, chi)
+            my_result_tensor = contract_2d_network(size, size, tn, chi, "numpy")
             my_end_time = perf_counter()
             err = abs(my_result_tensor - result_tensor)
             errs[i, j] = err
