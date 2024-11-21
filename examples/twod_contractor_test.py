@@ -58,7 +58,7 @@ def build_network(rows: int, cols: int, chi: int) -> qtn.TensorNetwork:
 
 
 def main() -> None:
-    sizes: List[int] = range(3, 15)
+    sizes: List[int] = range(3, 25)
     chis: List[int] = range(2, 9)
     # Test my contractor vs. quimb's.
     # Make array of errors. Rows are network sizes, columns are bond dims.
