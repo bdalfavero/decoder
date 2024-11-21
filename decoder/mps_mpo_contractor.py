@@ -1,5 +1,5 @@
 from typing import List
-from numba import jit
+import jax
 import quimb.tensor as qtn
 from quimb.tensor.tensor_1d import MatrixProductState, MatrixProductOperator
 
@@ -15,6 +15,11 @@ def contract_2d_network(
 
     assert chi >= 1, "chi must be a positive integer."
     assert rows * cols == len(tn.tensors), "Network must have the correct number of tensors."
+    assert backend in ["numpy", "jax"], "Backend must be numpy or jax."
+
+    if backend == "jax":
+        for t in tn.tensors:
+            t.modify(apply=lambda d: jax.numpy.array(d))
 
     # Check the number of tensors in each column.
     for i in range(cols):
