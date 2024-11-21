@@ -80,7 +80,7 @@ def main() -> None:
             errs[i, j] = err
             my_times[i, j] = my_end_time - my_start_time
     
-    f = h5py.File("../data/contractor_data.hdf5", "w")
+    f = h5py.File("contractor_data.hdf5", "w")
     sizes_dset = f.create_dataset("sizes", (len(sizes)), dtype=int)
     sizes_dset[:] = sizes
     chis_dset = f.create_dataset("chis", (len(chis)), dtype=int)
