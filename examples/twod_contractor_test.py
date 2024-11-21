@@ -67,6 +67,7 @@ def main() -> None:
     my_times: np.ndarray = np.zeros((len(sizes), len(chis)))
 
     for i, size in enumerate(sizes):
+        # TODO raise the bond dim to get a compression error.
         tn = build_network(size, size, 2)
         quimb_start_time = perf_counter()
         result_tensor = tn.contract()
@@ -74,13 +75,13 @@ def main() -> None:
         quimb_times[i] = quimb_end_time - quimb_start_time
         for j, chi in enumerate(chis):
             my_start_time = perf_counter()
-            my_result_tensor = contract_2d_network(size, size, tn, chi, "jax")
+            my_result_tensor = contract_2d_network(size, size, tn, chi, "numpy")
             my_end_time = perf_counter()
             err = abs(my_result_tensor - result_tensor)
             errs[i, j] = err
             my_times[i, j] = my_end_time - my_start_time
     
-    f = h5py.File("contractor_data.hdf5", "w")
+    f = h5py.File("../data/contractor_data.hdf5", "w")
     sizes_dset = f.create_dataset("sizes", (len(sizes)), dtype=int)
     sizes_dset[:] = sizes
     chis_dset = f.create_dataset("chis", (len(chis)), dtype=int)

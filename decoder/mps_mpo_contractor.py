@@ -37,6 +37,7 @@ def contract_2d_network(
         old_length: int = len(evolving_mps.tensors)
         mpo_tensors: List[qtn.Tensor] = [tn.tensors[k] for k in tn.tag_map[f"col{i}"]]
         mpo = qtn.TensorNetwork(mpo_tensors)
+        # TODO Contract only the bonds between the MPS & MPO tensors. Then fuse multibonds and compress.
         evolving_mps = qtn.TensorNetwork([(evolving_mps & mpo).contract(backend=backend)]) 
         for k in range(len(evolving_mps.outer_inds())):
             evolving_mps = evolving_mps.split(evolving_mps.outer_inds()[:k], absorb="left")
