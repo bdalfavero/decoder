@@ -1,18 +1,22 @@
-import sys
-import cupy as cp
-from cupy.random import rand
-from cuquantum import contract
-sys.path.append("../decoder/")
-from sweepline import sweepline_contract
+import numpy as np
+import scipy.linalg as la
+import quimb.tensor as qtn
+from decoder.sweepline import sweepline_contract
 
-a = rand(5, 4, 3)
-b = rand(4, 3, 2)
-c = rand(2, 1)
-inds = ["ijk", "jkl", "lm"]
+a1 = np.random.rand(2, 3)
+t1 = qtn.Tensor(a1, ['a', 'b'])
+a2 = np.random.rand(3, 100, 50).astype(float)
+t2 = qtn.Tensor(a2, ['b', 'c', 'd'])
+a3 = np.random.rand(100, 50).astype(float)
+t3 = qtn.Tensor(a3, ['c', 'd'])
 
-contracted_indices, contracted_tensor = sweepline_contract([a, b, c], inds)
+tensor_network = t1 & t2 & t3
+coords = [(0, 0), (0, 1), (0, 2)]
 
-exact_contract = contract("ijk,jkl,lm->im", a, b, c)
-
-assert contracted_tensor.shape == exact_contract.shape
-assert cp.allclose(contracted_tensor, exact_contract)
+for max_bond in range(1, 100):
+    result = sweepline_contract(tensor_network, coords, max_bond, 'k')
+    builtin_result = tensor_network.contract()
+    assert result.shape == builtin_result.data.shape
+    result_reshaped = result.data.reshape(result.data.size)
+    builtin_reshaped = builtin_result.data.reshape(builtin_result.data.size)
+    print(max_bond, la.norm(result_reshaped - builtin_reshaped))
