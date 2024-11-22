@@ -59,7 +59,7 @@ def build_network(rows: int, cols: int, chi: int) -> qtn.TensorNetwork:
 
 def main() -> None:
     sizes: List[int] = range(3, 7)
-    chis: List[int] = range(2, 9)
+    chis: List[int] = range(2, 12)
     # Test my contractor vs. quimb's.
     # Make array of errors. Rows are network sizes, columns are bond dims.
     errs: np.ndarray = np.zeros((len(sizes), len(chis)))
@@ -68,7 +68,7 @@ def main() -> None:
 
     for i, size in enumerate(sizes):
         # TODO raise the bond dim to get a compression error.
-        tn = build_network(size, size, 2)
+        tn = build_network(size, size, 8)
         quimb_start_time = perf_counter()
         result_tensor = tn.contract()
         quimb_end_time = perf_counter()
