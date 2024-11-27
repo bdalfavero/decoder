@@ -1,4 +1,5 @@
 from typing import NewType, Callable
+import numpy as np
 import cirq
 
 """Error models mapping Pauli operators to their probabilities."""
