@@ -242,13 +242,13 @@ def decode_representative(
     # Make Pauli strings for logical observables.
     xbar = cirq.PauliString({
         cirq.GridQubit(0, 0): cirq.X,
-        cirq.GridQubit(0, 2): cirq.X,
-        cirq.GridQubit(0, 4): cirq.X
+        cirq.GridQubit(2, 0): cirq.X,
+        cirq.GridQubit(4, 0): cirq.X
     })
     zbar = cirq.PauliString({
         cirq.GridQubit(0, 0): cirq.Z,
-        cirq.GridQubit(2, 0): cirq.Z,
-        cirq.GridQubit(4, 0): cirq.Z
+        cirq.GridQubit(0, 2): cirq.Z,
+        cirq.GridQubit(0, 4): cirq.Z
     })
     ybar = xbar * zbar
     # Find the probability of each logical coset.
