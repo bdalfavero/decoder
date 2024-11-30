@@ -51,6 +51,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("shots", type=int, help="Number of shots for each 'experiment'")
     parser.add_argument("processes", type=int, help="Number of processes in the pathos pool.")
+    parser.add_argument("outfile", type=str, help="Output file path.")
     args = parser.parse_args()
 
     shots = args.shots
@@ -63,7 +64,7 @@ def main() -> None:
             lers[i, j] = ler
     xr_frame = xr.DataArray(lers, dims=("d", "p"), coords={"d": ds, "p": ps}, name="ler")
     pandas_df = xr_frame.to_dataframe()
-    pandas_df.to_csv("../data/logical_error_rates.csv")
+    pandas_df.to_csv(args.outfile)
  
 if __name__ == "__main__":
     main()
