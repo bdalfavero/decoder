@@ -1,11 +1,13 @@
 from typing import List
+import numpy as np
 import jax
 import quimb.tensor as qtn
 from quimb.tensor.tensor_1d import MatrixProductState, MatrixProductOperator
 
 def contract_2d_network(
     rows: int, cols: int, tn: qtn.TensorNetwork, chi: int,
-    backend: str = "numpy"
+    backend: str = "numpy", mps_order: str="lrp",
+    mpo_order: str="lrud"
 ) -> float:
     """Contract the 2D network corresponding to the surface code decoder.
     This is done using the MPS-MPO-MPS method as detailed in the Bravyi decoding paper.
@@ -31,19 +33,28 @@ def contract_2d_network(
 
     # Extract the first column.
     first_column_tensors = [tn.tensors[i] for i in tn.tag_map["col0"]]
-    evolving_mps = qtn.TensorNetwork(first_column_tensors)
+    first_col_tensor_data = [t.data for t in first_column_tensors]
+    evolving_mps = qtn.tensor_1d.MatrixProductState(first_col_tensor_data, shape=mps_order)
     # Contract all of the other columns in, up to the last one.
     for i in range(1, cols - 1):
-        old_length: int = len(evolving_mps.tensors)
         mpo_tensors: List[qtn.Tensor] = [tn.tensors[k] for k in tn.tag_map[f"col{i}"]]
-        mpo = qtn.TensorNetwork(mpo_tensors)
-        # TODO Contract only the bonds between the MPS & MPO tensors. Then fuse multibonds and compress.
-        evolving_mps = qtn.TensorNetwork([(evolving_mps & mpo).contract(backend=backend)]) 
-        for k in range(len(evolving_mps.outer_inds())):
-            evolving_mps = evolving_mps.split(evolving_mps.outer_inds()[:k], absorb="left")
-        evolving_mps.compress_all(max_bond=chi, inplace=True)
+        mpo_tensor_data: List[np.ndarray] = [t.data for t in mpo_tensors]
+        mpo = qtn.tensor_1d.MatrixProductOperator(mpo_tensor_data, shape=mpo_order)
+        evolving_mps.gate_with_mpo(mpo, max_bond=chi)
     # Compute the overlap with the last column.
     last_col_tensors = [tn.tensors[i] for i in tn.tag_map[f"col{cols-1}"]]
-    last_col_mps = qtn.TensorNetwork(last_col_tensors)
+    last_col_tensor_data = [t.data for t in last_col_tensors]
+    last_col_mps = qtn.tensor_1d.MatrixProductState(last_col_tensor_data, shape=mps_order)
     result = (evolving_mps & last_col_mps).contract()
     return result
+
+if __name__ == "__main__":
+    tn = qtn.TN2D_rand(4, 4, 2, y_tag_id="col{}")
+    for i in range(4):
+        print("i=", i)
+        col_tensors = [tn.tensor_map[i] for i in tn.tag_map[f"col{i}"]]
+        for t in col_tensors:
+            print(t.inds)
+    real_result = tn.contract()
+    my_result = contract_2d_network(4, 4, tn, 1000000, mps_order="prl", mpo_order="durl")
+    print(abs(real_result - my_result))
