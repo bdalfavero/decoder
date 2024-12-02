@@ -237,19 +237,20 @@ def decode_representative(
     assert d > 1, f"Distance must be greater than one, not {d}"
 
     n_data_qubits = d * d + (d - 1) * (d - 1)
+    qubits_per_side = 2 * d - 1
     qs = cirq.GridQubit.rect(13, 13)
     f: cirq.PauliString = representative
     # Make Pauli strings for logical observables.
-    xbar = cirq.PauliString({
-        cirq.GridQubit(0, 0): cirq.X,
-        cirq.GridQubit(2, 0): cirq.X,
-        cirq.GridQubit(4, 0): cirq.X
-    })
-    zbar = cirq.PauliString({
-        cirq.GridQubit(0, 0): cirq.Z,
-        cirq.GridQubit(0, 2): cirq.Z,
-        cirq.GridQubit(0, 4): cirq.Z
-    })
+    top_qubits: List[cirq.Qid] = []
+    for i in range(qubits_per_side):
+        if i % 2 == 0:
+            top_qubits.append(cirq.GridQubit(0, i))
+    zbar = cirq.PauliString({q: cirq.z for q in top_qubits})
+    side_qubits: List[cirq.Qid] = []
+    for i in range(qubits_per_side):
+        if i % 2 == 0:
+            side_qubits.append(cirq.GridQubit(i, 0))
+    xbar = cirq.PauliString({q: cirq.X for q in side_qubits})
     ybar = xbar * zbar
     # Find the probability of each logical coset.
     coset_paulis: List[cirq.PauliString] = [f, f * xbar, f * ybar, f * zbar]
