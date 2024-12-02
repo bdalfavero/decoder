@@ -245,7 +245,7 @@ def decode_representative(
     for i in range(qubits_per_side):
         if i % 2 == 0:
             top_qubits.append(cirq.GridQubit(0, i))
-    zbar = cirq.PauliString({q: cirq.z for q in top_qubits})
+    zbar = cirq.PauliString({q: cirq.Z for q in top_qubits})
     side_qubits: List[cirq.Qid] = []
     for i in range(qubits_per_side):
         if i % 2 == 0:
