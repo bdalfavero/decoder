@@ -3,3 +3,4 @@ __pycache__/
 decoder.egg-info/
 data/*
 .DS_Store
+*.pdf
