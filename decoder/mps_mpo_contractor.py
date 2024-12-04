@@ -52,4 +52,3 @@ if __name__ == "__main__":
     #my_result = contract_2d_network(3, 3, tn, 1_000_000)
     #print(exact_result - my_result)
     first_col_tensors = [tn.tensor_map[i] for i in tn.tag_map["col0"]]
-    ordered_tensors = put_mps_tensors_in_lrp_order(first_col_tensors)

@@ -68,7 +68,7 @@ def main() -> None:
 
     for i, size in enumerate(sizes):
         # TODO raise the bond dim to get a compression error.
-        tn = build_network(size, size, 8)
+        tn = build_network(size, size, 4)
         quimb_start_time = perf_counter()
         result_tensor = tn.contract()
         quimb_end_time = perf_counter()
