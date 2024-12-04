@@ -3,29 +3,6 @@ import jax
 import quimb.tensor as qtn
 from quimb.tensor.tensor_1d import MatrixProductState, MatrixProductOperator
 
-def put_mps_tensors_in_lrp_order(mps_tensors: List[qtn.Tensor]):
-    """Put the MPS tensors in the lrp (left, right, physical) order
-    that the QuIMB MPS constructor expects. We use the 'row' tag
-    to define the order of tensors in the MPS."""
-
-    tn = qtn.TensorNetwork(mps_tensors)
-    output_tensor_list: List[qtn.Tensor] = [] # The list of tensors with swapped axes.
-    for i in range(len(mps_tensors)):
-        assert f"row{i}" in [tag for ten in mps_tensors for tag in ten.tags]
-        site_i_tensor = tn.tensors[list(tn.tag_map[f"row{i}"])[0]]
-        if i == 0:
-            right_tensor = tn.tensors[list(tn.tag_map[f"row{i+1}"])[0]]
-            physical_ind = list(set(site_i_tensor.inds) - set(right_tensor.inds))[0]
-            bond_ind = list(set(site_i_tensor.inds) & set(right_tensor.inds))[0]
-            swapped_tensor = site_i_tensor.copy().transpose((bond_ind, physical_ind))
-        elif i == len(mps_tensors - 1):
-            left_tensor = tn.tag_map[f"row{i-1}"]
-        else:
-            right_tensor = tn.tag_map[f"row{i+1}"]
-            left_tensor = tn.tag_map[f"row{i-1}"]
-    return output_tensor_list
-
-
 def contract_2d_network(
     rows: int, cols: int, tn: qtn.TensorNetwork, chi: int,
     backend: str = "numpy"
@@ -53,18 +30,21 @@ def contract_2d_network(
             f"Column tag {tag} must have {rows} tensors, but has {col_tensor_count}."
 
     # Extract the first column.
-    first_column_tensors = [tn.tensor_map[i] for i in tn.tag_map["col0"]]
-    evolving_mps = qtn.tensor_1d.MatrixProductState([t.data for t in first_column_tensors])
+    first_column_tensors = [tn.tensors[i] for i in tn.tag_map["col0"]]
+    evolving_mps = qtn.TensorNetwork(first_column_tensors)
     # Contract all of the other columns in, up to the last one.
     for i in range(1, cols - 1):
-        mpo_tensors: List[qtn.Tensor] = [tn.tensor_map[k] for k in tn.tag_map[f"col{i}"]]
-        mpo = qtn.tensor_1d.MatrixProductOperator([t.data for t in mpo_tensors])
-        evolving_mps.gate_with_mpo(mpo, inplace=True, max_bond=chi)
+        old_length: int = len(evolving_mps.tensors)
+        mpo_tensors: List[qtn.Tensor] = [tn.tensors[k] for k in tn.tag_map[f"col{i}"]]
+        mpo = qtn.TensorNetwork(mpo_tensors)
+        evolving_mps = qtn.TensorNetwork([(evolving_mps & mpo).contract(backend=backend)]) 
+        for k in range(len(evolving_mps.outer_inds())):
+            evolving_mps = evolving_mps.split(evolving_mps.outer_inds()[:k], absorb="left")
+        evolving_mps.compress_all(max_bond=chi, inplace=True)
     # Compute the overlap with the last column.
-    last_col_tensors = [tn.tensor_map[i] for i in tn.tag_map[f"col{cols-1}"]]
-    last_col_mps = qtn.tensor_1d.MatrixProductState([t.data for t in last_col_tensors])
-    result = evolving_mps @ last_col_mps
-    return result
+    last_col_tensors = [tn.tensors[i] for i in tn.tag_map[f"col{cols-1}"]]
+    last_col_mps = qtn.TensorNetwork(last_col_tensors)
+    return evolving_mps @ last_col_mps
 
 if __name__ == "__main__":
     tn = qtn.TN2D_rand(3, 3, D=2, y_tag_id="col{}", x_tag_id="row{}")
