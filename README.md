@@ -4,4 +4,5 @@ This repository contains the code for my tensor network decoder. The following f
 * `decode_errors.py`
 * `two_contractor_test.py`
 * `decoder_contractor_test.py`
+
 Code for producing plots is provided in the `scripts` directory.
