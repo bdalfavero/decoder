@@ -7,7 +7,7 @@ import pandas as pd
 from pathos.pools import ProcessPool
 import cirq
 from decoder.surface_decoder import decode_representative, is_error_logical_bit_flip
-from decoder.error_model import sample_surface_error, independent_depolarizing_noise
+from decoder.error_model import sample_surface_error, independent_depolarizing_model
 
 def count_errors(d: int, p: float, shots: int) -> int:
     """Compute the logical error rate by seeing when real logical bit flips in the sampled
@@ -15,7 +15,7 @@ def count_errors(d: int, p: float, shots: int) -> int:
 
     num_logical_errs = 0
     qs = cirq.GridQubit.rect(2 * d + 1, 2 * d + 1)
-    model = independent_depolarizing_noise(qs, p)
+    model = independent_depolarizing_model(qs, p)
     for _ in range(shots):
         err = sample_surface_error(d, p, False)
         # Get the error class (I, X, Y, or Z) and see if this error is a logical bit flip.
