@@ -5,6 +5,7 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 from pathos.pools import ProcessPool
+import cirq
 from decoder.surface_decoder import decode_representative, is_error_logical_bit_flip
 from decoder.error_model import sample_surface_error, independent_depolarizing_noise
 
@@ -13,11 +14,12 @@ def count_errors(d: int, p: float, shots: int) -> int:
     errors match up with the decoder predicting logical bit flips"""
 
     num_logical_errs = 0
-    model = lambda e: independent_depolarizing_noise(e, p)
+    qs = cirq.GridQubit.rect(2 * d + 1, 2 * d + 1)
+    model = independent_depolarizing_noise(qs, p)
     for _ in range(shots):
         err = sample_surface_error(d, p, False)
         # Get the error class (I, X, Y, or Z) and see if this error is a logical bit flip.
-        predicted_err_class: int = decode_representative(d, err, p, model)
+        predicted_err_class: int = decode_representative(d, err, model)
         error_flips_bit: bool = is_error_logical_bit_flip(d, err)
         # If the error class is I or Z, the correction flips the bit back after the error.
         err_class_flips_bit: bool = predicted_err_class == 1 or predicted_err_class == 2 

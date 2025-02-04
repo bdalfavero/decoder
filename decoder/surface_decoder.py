@@ -6,7 +6,7 @@ import numpy as np
 import networkx as nx
 import cirq
 import quimb.tensor as qtn
-from decoder.error_model import ErrorModel, independent_depolarizing_noise, independent_bit_flip_noise
+from decoder.error_model import ErrorModel
 from decoder.helpers import raise_pauli_to_power
 
 def kron_tensor(d: int, inds: List[str]) -> qtn.Tensor:
@@ -29,7 +29,7 @@ def kron_tensor(d: int, inds: List[str]) -> qtn.Tensor:
 
 
 def error_tensor(
-    err: cirq.PauliString, err_model: ErrorModel, num_inds: int,
+    q: cirq.Qid, err: cirq.PauliString, err_model: ErrorModel, num_inds: int,
     north_south_is_x: bool
 ) -> qtn.Tensor:
     """The tensor encoding probabilities of errors in Bravyi and Chubb.
@@ -41,6 +41,7 @@ def error_tensor(
     If num_inds == 4, we return a tensor with indices (i, j, k, l).
     
     Arguments:
+    q - qubit for this error tensor (in case the string is the identity.)
     err - A PauliString acting on just the data qubit for this tensor.
     err_model - an ErrorModel the decoder uses.
     num_inds - number of indices in the tensor.
@@ -52,11 +53,9 @@ def error_tensor(
     err_tensor - a quimb Tensor for the TN decoder."""
 
     assert len(err.qubits) <= 1, "Error must have only one qubit."
-
     if len(err.qubits) == 1:
-        q = err.qubits[0]
-    else:
-        q = cirq.LineQubit(0)
+        assert q in err.qubits, f"q {q} not in {err.qubits}"
+
     pauli_x: cirq.PauliString = cirq.PauliString({q: cirq.X})
     pauli_z: cirq.PauliString = cirq.PauliString({q: cirq.Z})
 
@@ -84,7 +83,7 @@ def error_tensor(
                         pz_to_j = raise_pauli_to_power(pauli_z, j)
                         px_to_ik = raise_pauli_to_power(pauli_x, (i+k))
                         #tensor_data[i, j, k] = err_model(err * pauli_z ** j * pauli_x ** (i + k))
-                        tensor_data[i, j, k] = err_model(err * pz_to_j * px_to_ik) 
+                        tensor_data[i, j, k] = err_model(err * pz_to_j * px_to_ik)
                     else:
                         px_to_j = raise_pauli_to_power(pauli_x, j)
                         pz_to_ik = raise_pauli_to_power(pauli_z, (i+k))
@@ -113,7 +112,7 @@ def error_tensor(
 
 
 def build_network_for_error_class(
-    qs: List[cirq.Qid], err: cirq.PauliString, d: int, p_depol: float, model: ErrorModel
+    qs: List[cirq.Qid], err: cirq.PauliString, d: int, model: ErrorModel
 ) -> qtn.TensorNetwork:
     """Builds the 2D PEPS for the RBIM partition function.
     
@@ -129,7 +128,6 @@ def build_network_for_error_class(
     network - tensor network corresponding to the partition function."""
 
     assert set(err.keys()).issubset(set(qs)), "Error qubits must be a subset of the data qubits."
-    assert (p_depol >= 0.0) and (p_depol <= 1.0), "Probability must be valid."
     assert d >= 3, "Distance must be greater than 3."
 
     # Make a list of horizontal and vertical indices.
@@ -181,7 +179,7 @@ def build_network_for_error_class(
                 # If the tensor is "v," then east and west are Z, north and south are X.
                 tensor_is_h = (i % 2 == 0) and (j % 2 == 0)
                 #breakpoint()
-                tensor = error_tensor(local_err, model, len(inds), not tensor_is_h)
+                tensor = error_tensor(cirq.GridQubit(i,j), local_err, model, len(inds), not tensor_is_h)
                 # The above function assigns generic indices. Change these for specific tensors.
                 if len(inds) == 2:
                     tensor.reindex({"i": inds[0], "j": inds[1]}, inplace=True)
@@ -228,12 +226,11 @@ def syndrome_to_representative(d: int, syndrome: np.ndarray) -> cirq.PauliString
 
 
 def decode_representative(
-    d: int, representative: cirq.PauliString, p_depol: float, model: ErrorModel
+    d: int, representative: cirq.PauliString, model: ErrorModel
 ) -> int:
     """Decide which of the cosets fI, fX, fY, or fZ is most likely,
     where f is the representative of some syndrome s."""
 
-    assert p_depol >= 0.0 and p_depol <= 1.0, "Depolarizing probability must be valid."
     assert d > 1, f"Distance must be greater than one, not {d}"
 
     n_data_qubits = d * d + (d - 1) * (d - 1)
@@ -256,7 +253,7 @@ def decode_representative(
     coset_paulis: List[cirq.PauliString] = [f, f * xbar, f * ybar, f * zbar]
     coset_probs: List[float] = []
     for i, cp in enumerate(coset_paulis):
-        tn = build_network_for_error_class(qs, cp, d, p_depol, model)
+        tn = build_network_for_error_class(qs, cp, d, model)
         # TODO Replace this with an approximate contractor.
         prob = tn.contract()
         if isinstance(prob, complex):
