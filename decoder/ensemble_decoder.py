@@ -30,3 +30,21 @@ def perturb_independent_model(model: IndependentErrorModel, std: float, tol: flo
         this_q_dict = {"I": p_new[0], "X": p_new[1], "Y": p_new[2], "Z": p_new[3]}
         new_dict[q] = deepcopy(this_q_dict)
     return IndependentErrorModel(new_dict)
+
+
+def ensemble_decode_representative(
+    d: int, representative: cirq.PauliString, model: IndependenttErrorModel,
+    ensemble_size: int, std: float
+) -> int:
+    """Decode with an ensemble of perturbed models."""
+
+    assert ensemble_size >= 1
+    # Make an ensemble of perturbed models, and generate an error class from each.
+    models = []
+    for _ in range(ensemble_size):
+        models.append(perturb_independent_model(model, std))
+    error_classes = []
+    for p_model in models:
+        error_classes.append(decode_representative(d, representative, p_model))
+    # Return the error class that got the most votes.
+    return max(set(error_classes), key=error_classes.count)

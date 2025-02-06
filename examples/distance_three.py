@@ -6,9 +6,9 @@ from pathos.pools import ProcessPool
 import cirq
 from decoder.error_model import independent_depolarizing_model, sample_surface_error, IndependentErrorModel
 from decoder.surface_decoder import decode_representative, is_error_logical_bit_flip
-from decoder.ensemble_decoder import perturb_independent_model
+from decoder.ensemble_decoder import perturb_independent_model, ensemble_decode_representative
 
-def count_errors(d: int, p: float, shots: int, model: IndependentErrorModel) -> int:
+def count_errors(d: int, p: float, shots: int, model: IndependentErrorModel, ensemble: bool=False) -> int:
     """Compute the logical error rate by seeing when real logical bit flips in the sampled
     errors match up with the decoder predicting logical bit flips"""
 
@@ -17,7 +17,10 @@ def count_errors(d: int, p: float, shots: int, model: IndependentErrorModel) -> 
     for _ in range(shots):
         err = sample_surface_error(d, p, False)
         # Get the error class (I, X, Y, or Z) and see if this error is a logical bit flip.
-        predicted_err_class: int = decode_representative(d, err, model)
+        if not ensemble:
+            predicted_err_class: int = decode_representative(d, err, model)
+        else:
+            predicted_err_class: int = ensemble_decode_representative(d, err, model, 3, 1e-4)
         error_flips_bit: bool = is_error_logical_bit_flip(d, err)
         # If the error class is I or Z, the correction flips the bit back after the error.
         err_class_flips_bit: bool = predicted_err_class == 1 or predicted_err_class == 2 
@@ -56,7 +59,7 @@ def main():
     lers = []
     for p in ps:
         model = independent_depolarizing_model(qs, p)
-        model = perturb_independent_model(model, 1e-4)
+        #model = perturb_independent_model(model, 1e-4)
         ler = logical_error_rate(d, p, shots, procs, model)
         lers.append(ler)
     df = pd.DataFrame({"p": ps, "ler": lers})
