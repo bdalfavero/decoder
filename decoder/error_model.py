@@ -11,7 +11,7 @@ class ErrorModel:
     def __init__(self, qubits: List[cirq.Qid]):
         self.qubits = qubits
 
-    def __call__(self, pauli: cirq.PauliString):
+    def __call__(self, q: cirq.Qid, pauli: cirq.PauliString):
         """Map a qubit and a Pauli to a probability."""
 
         raise NotImplementedError("Base class does not implement the call method.")
@@ -20,31 +20,38 @@ class ErrorModel:
 class IndependentErrorModel(ErrorModel):
     """A model of independent Pauli errors on each qubit."""
 
-    def __init__(self, probability_dict: Dict[cirq.PauliString, float]):
+    def __init__(self, probability_dict: Dict[cirq.Qid, Dict[str, float]]):
         super().__init__(list(probability_dict.keys()))
         self.probability_dict = probability_dict
     
-    def __call__(self, pauli: cirq.PauliString):
+    def __call__(self, q: cirq.Qid, pauli: cirq.PauliString):
         """Get the probability of a single qubit Pauli error."""
 
         assert len(pauli.qubits) in [0, 1], f"Error must be single qubt, but got {len(pauli.qubits)}"
-        if len(pauli.qubits) == 1:
-            q = pauli.qubits[0]
-            coefficientless_pauli = cirq.PauliString({q: pauli[q]})
+        if len(pauli.qubits) == 0:
+            return self.probability_dict[q]["I"]
         else:
-            coefficientless_pauli = cirq.PauliString()
-        return self.probability_dict[coefficientless_pauli]
+            if pauli[q] == cirq.X:
+                return self.probability_dict[q]["X"]
+            elif pauli[q] == cirq.Y:
+                return self.probability_dict[q]["Y"]
+            elif pauli[q] == cirq.Z:
+                return self.probability_dict[q]["Z"]
+            else:
+                raise ValueError(f"Illegal Pauli {pauli[q]}")
 
 
-def independent_depolarizing_model(qs: List[cirq.Qid], p_depol: float) -> IndependentErrorModel:
+def independent_depolarizing_model(qs: List[cirq.Qid], p: float) -> IndependentErrorModel:
     """Builds an independent (symmetric) depolarizing model."""
 
     probability_dict = {}
     for q in qs:
-        probability_dict[cirq.PauliString({q: cirq.I})] = 1.0 - p_depol
-        probability_dict[cirq.PauliString({q: cirq.X})] = p_depol / 3.0
-        probability_dict[cirq.PauliString({q: cirq.Y})] = p_depol / 3.0
-        probability_dict[cirq.PauliString({q: cirq.Z})] = p_depol / 3.0
+        this_q_dict = {}
+        this_q_dict["I"] = 1.0 - p
+        this_q_dict["X"] = p / 3.0
+        this_q_dict["Y"] = p / 3.0
+        this_q_dict["Z"] = p / 3.0
+        probability_dict[q] = deepcopy(this_q_dict)
     return IndependentErrorModel(probability_dict)
 
 
@@ -53,13 +60,16 @@ def independent_bit_flip_model(qs: List[cirq.Qid], p: float) -> IndependentError
 
     probability_dict = {}
     for q in qs:
-        probability_dict[cirq.PauliString({q: cirq.I})] = 1.0 - p
-        probability_dict[cirq.PauliString({q: cirq.X})] = p
-        probability_dict[cirq.PauliString({q: cirq.Y})] = 0.0
-        probability_dict[cirq.PauliString({q: cirq.Z})] = 0.0
+        this_q_dict = {}
+        this_q_dict["I"] = 1.0 - p
+        this_q_dict["X"] = p
+        this_q_dict["Y"] = 0.0
+        this_q_dict["Z"] = 0.0
+        probability_dict[q] = deepcopy(this_q_dict)
     return IndependentErrorModel(probability_dict)
 
 
+# TODO implement a better sampling method!!!!
 def sample_surface_error(d: int, p: float, bit_flip=True) -> cirq.PauliString:
     """Sample an error in the surface code."""
 
@@ -87,4 +97,5 @@ def sample_surface_error(d: int, p: float, bit_flip=True) -> cirq.PauliString:
 if __name__ == "__main__":
     qs = cirq.LineQubit.range(9)
     model = independent_depolarizing_model(qs, 0.5)
-    print(model(cirq.PauliString({qs[0]: cirq.X})))
+    #print(model(qs[0], cirq.PauliString({qs[0]: cirq.X})))
+    print(model(qs[0], cirq.PauliString()))

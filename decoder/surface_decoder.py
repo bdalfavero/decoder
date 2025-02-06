@@ -67,12 +67,12 @@ def error_tensor(
                 if north_south_is_x:
                     pz_to_j = raise_pauli_to_power(pauli_z, j)
                     px_to_k = raise_pauli_to_power(pauli_x, k)
-                    tensor_data[j, k] = err_model(err * pz_to_j * px_to_k)
+                    tensor_data[j, k] = err_model(q, err * pz_to_j * px_to_k)
                 else:
                     #tensor_data[j, k] = err_model(err * pauli_x ** j * pauli_z ** k)
                     pz_to_k = raise_pauli_to_power(pauli_z, k)
                     px_to_j = raise_pauli_to_power(pauli_x, j)
-                    tensor_data[j, k] = err_model(err * pz_to_k * px_to_j)
+                    tensor_data[j, k] = err_model(q, err * pz_to_k * px_to_j)
         return qtn.Tensor(tensor_data, inds=["i", "j"])
     elif num_inds == 3:
         tensor_data = np.zeros((2, 2, 2), dtype=complex)
@@ -83,12 +83,12 @@ def error_tensor(
                         pz_to_j = raise_pauli_to_power(pauli_z, j)
                         px_to_ik = raise_pauli_to_power(pauli_x, (i+k))
                         #tensor_data[i, j, k] = err_model(err * pauli_z ** j * pauli_x ** (i + k))
-                        tensor_data[i, j, k] = err_model(err * pz_to_j * px_to_ik)
+                        tensor_data[i, j, k] = err_model(q, err * pz_to_j * px_to_ik)
                     else:
                         px_to_j = raise_pauli_to_power(pauli_x, j)
                         pz_to_ik = raise_pauli_to_power(pauli_z, (i+k))
                         #tensor_data[i, j, k] = err_model(err * pauli_x ** j * pauli_z ** (i + k))
-                        tensor_data[i, j, k] = err_model(err * px_to_j * pz_to_ik)
+                        tensor_data[i, j, k] = err_model(q, err * px_to_j * pz_to_ik)
         return qtn.Tensor(tensor_data, inds=["i", "j", "k"])
     elif num_inds == 4:
         tensor_data = np.zeros((2, 2, 2, 2), dtype=complex)
@@ -100,12 +100,12 @@ def error_tensor(
                             pz_to_jl = raise_pauli_to_power(pauli_z, j + l)
                             px_to_ik = raise_pauli_to_power(pauli_x, i + k)
                             #tensor_data[i, j, k, l] = err_model(err * pauli_z ** (j + l) * pauli_x ** (i + k))
-                            tensor_data[i, j, k, l] = err_model(err * pz_to_jl * px_to_ik)
+                            tensor_data[i, j, k, l] = err_model(q, err * pz_to_jl * px_to_ik)
                         else:
                             px_to_jl = raise_pauli_to_power(pauli_x, j + l)
                             pz_to_ik = raise_pauli_to_power(pauli_z, i + k)
                             #tensor_data[i, j, k, l] = err_model(err * pauli_x ** (j + l) * pauli_z ** (i + k))
-                            tensor_data[i, j, k, l] = err_model(err * px_to_jl * pz_to_ik)
+                            tensor_data[i, j, k, l] = err_model(q, err * px_to_jl * pz_to_ik)
         return qtn.Tensor(tensor_data, inds=["i", "j", "k", "l"])
     else:
         raise ValueError(f"Number of indices {num_inds} is invalide. Must be 2, 3, or 4.")
