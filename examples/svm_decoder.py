@@ -6,12 +6,14 @@ app = marimo.App(width="medium")
 
 @app.cell
 def _():
+    from copy import deepcopy
     import marimo as mo
     import numpy as np
     import pandas as pd
     import matplotlib.pyplot as plt
     from sklearn import svm
-    return mo, np, pd, plt, svm
+    from sklearn.model_selection import cross_validate
+    return cross_validate, deepcopy, mo, np, pd, plt, svm
 
 
 @app.cell
@@ -96,6 +98,14 @@ def _(X_test, Y_bf_test, Y_pf_test, svm_bitflip, svm_phaseflip):
     print(svm_bitflip.score(X_test, Y_bf_test))
     print(svm_phaseflip.score(X_test, Y_pf_test))
     return
+
+
+@app.cell
+def _(X, Y, cross_validate, svm):
+    classifier = svm.SVC()
+    result = cross_validate(classifier, X, y=Y.astype(int), cv=5)
+    result['test_score']
+    return classifier, result
 
 
 @app.cell
