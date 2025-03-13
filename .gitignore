@@ -4,3 +4,4 @@ decoder.egg-info/
 data/*
 .DS_Store
 *.pdf
+*.csv
