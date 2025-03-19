@@ -97,7 +97,8 @@ class DEMDecoder:
         stabilizers: List[stim.PauliString],
         logicals: List[stim.PauliString]
     ) -> None:
-        """Initialize the deocder with probabilities, stabilizers, and logical operators"""
+        """Initialize the deocder with probabilities, stabilizers, and logical operators.
+        The list of logicals for k=1 should be [Logical X, Logical Z.]"""
 
         self._probabilities = probabilities
         self._stabilizers = stabilizers
@@ -105,8 +106,7 @@ class DEMDecoder:
 
     @property
     def network(self) -> qtn.TensorNetwork:
-        """Build a tensor network to decode a set of detectors.
-        """
+        """Build a tensor network to decode a set of detectors."""
 
         nq = self._probabilities.shape[0]
         binary_stabilizers = [stim_pauli_string_to_binary_symplectic(s) for s in self._stabilizers]
@@ -177,17 +177,35 @@ class DEMDecoder:
         class_probabilities = []
         for i in range(4):
             if i == 0:
-                l_tensors = boolean_list_to_basis_tensors([False, False], "l")
+                l_tensors = boolean_list_to_basis_tensors([False, False], "l") # Logical I
             elif i == 1:
-                l_tensors = boolean_list_to_basis_tensors([False, True], "l")
+                l_tensors = boolean_list_to_basis_tensors([True, False], "l") # Logical X
             elif i == 2:
-                l_tensors = boolean_list_to_basis_tensors([True, False], "l")
+                l_tensors = boolean_list_to_basis_tensors([True, True], "l") # Logical Y
             else:
-                l_tensors = boolean_list_to_basis_tensors([True, True], "l")
+                l_tensors = boolean_list_to_basis_tensors([False, True], "l") # Logical Z
             network = self.network & m_tensors & l_tensors
             class_probabilities.append(network.contract())
 
         return np.argmax(class_probabilities)
+
+    def decode_batch(self, m: np.ndarray) -> List[int]:
+        """Decode a batch of syndromes.
+        
+        Arguments:
+        m - (number of shots) x (number of syndrome bits) boolean array
+        
+        Returns:
+        classes - List of classes for each shot."""
+
+        assert m.shape[1] == len(self._stabilizers), \
+            f"Must have {len(self._stabilizers)} columns, not {m.shape[1]}"
+
+        classes: List[int] = []
+        for i in range(m.shape[0]):
+            syndrome = m[i, :].tolist()
+            classes.append(self.decode_syndrome(syndrome))
+        return classes
 
 
 if __name__ == "__main__":
